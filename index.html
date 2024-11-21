@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Post-Apocalyptic Scavenger Game</title>
+    <style>
+      /* General Body Styles */
+      body {
+        font-family: "Courier New", Courier, monospace;
+        background-color: #000000;
+        color: #e0e0e0;
+        padding: 20px;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        justify-content: flex-start;
+      }
+
+      /* Main Header */
+      h1 {
+        font-size: 36px;
+        color: #1aff00;
+        margin-bottom: 20px;
+      }
+
+      /* Pip-Boy Style Container */
+      .pip-boy-container {
+        background: url("https://www.falloutwiki.com/images/2/28/Fallout_4_PipBoy_Front.jpg")
+          no-repeat center center;
+        background-size: cover;
+        border: 5px solid #007315;
+        padding: 20px;
+        border-radius: 20px;
+        width: 80%;
+        max-width: 800px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        color: #32f83c;
+      }
+
+      /* Game Log (Text Area) */
+      .log {
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border: 1px solid #00ff00;
+        height: 250px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+        font-size: 16px;
+        font-family: "Courier New", Courier, monospace;
+        max-height: 250px;
+      }
+
+      /* Inventory Section */
+      .inventory {
+        margin-top: 20px;
+        background-color: rgba(0, 0, 0, 0.6);
+        padding: 10px;
+        border: 1px solid #00ff26;
+        border-radius: 10px;
+      }
+
+      .inventory h2 {
+        font-size: 24px;
+        text-align: center;
+      }
+
+      .inventory-item {
+        margin: 5px 0;
+        font-size: 18px;
+      }
+
+      /* Coin and Health Bars */
+      .coins,
+      .health {
+        font-size: 20px;
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+        font-weight: bold;
+      }
+
+      /* Command Input Box */
+      #command {
+        width: 60%;
+        padding: 10px;
+        font-size: 18px;
+        background-color: #000000;
+        color: #00ff00;
+        border: 1px solid #04ff00;
+        border-radius: 5px;
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      /* Button Styles (for actions) */
+      .action-button {
+        background-color: #000000;
+        color: #ffffff;
+        font-size: 16px;
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        margin: 5px;
+      }
+
+      .action-button:hover {
+        background-color: #000000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Post-Apocalyptic Scavenger Game</h1>
+    <div class="pip-boy-container">
+      <div id="game-log" class="log"></div>
+      <div class="inventory">
+        <h2>Inventory</h2>
+        <div id="inventory"></div>
+      </div>
+      <div class="coins">
+        <span>Coins:</span> <span id="coin-count">100</span>
+      </div>
+      <div class="health">
+        <span>Health:</span> <span id="health-count">100</span>
+      </div>
+      <input type="text" id="command" placeholder="Enter command..." />
+    </div>
+
+    <script>
+      // Items and their values
+      const items = [
+        "Water Bottle",
+        "Canned Food",
+        "First Aid Kit",
+        "Flashlight",
+        "Map",
+        "Scrap",
+        "Wood",
+        "Plastic",
+        "Knife",
+        "Pistol",
+        "Rifle",
+        "Ammunition",
+        "Gas Mask",
+        "Jet Pack",
+        "Combat Armor",
+        "RadAway",
+      ];
+      const itemValues = {
+        "Water Bottle": 5,
+        "Canned Food": 10,
+        "First Aid Kit": 20,
+        Flashlight: 15,
+        Map: 25,
+        Scrap: 3,
+        Wood: 5,
+        Plastic: 4,
+        Knife: 15,
+        Pistol: 50,
+        Rifle: 100,
+        Ammunition: 10,
+        "Gas Mask": 30,
+        "Jet Pack": 200,
+        "Combat Armor": 75,
+        RadAway: 40,
+      };
+      const weapons = ["Knife", "Pistol", "Rifle"];
+      const enemies = ["Raider", "Mutant", "Bandit"];
+      const commands = {
+        explore: ["explore", "e"],
+        inventory: ["inventory", "i"],
+        help: ["help", "h"],
+        sell: ["sell", "s"],
+        trade: ["trade", "t"],
+        sellAll: ["sellall", "sa"],
+        buy: ["buy", "b"],
+        startExploring: ["start", "se"],
+        stopExploring: ["stop", "sx"],
+        battle: ["battle", "bt"],
+        health: ["health", "hp"],
+        use: ["use", "u"],
+      };
+
+      // Variables for game state
+      const gameLog = document.getElementById("game-log");
+      const inventory = document.getElementById("inventory");
+      const coinCount = document.getElementById("coin-count");
+      const healthCount = document.getElementById("health-count");
+      const commandInput = document.getElementById("command");
+
+      let inventoryItems = {};
+      let coins = 100;
+      let health = 100;
+      let explorationInterval;
+
+      // Function to log messages to the game log
+      function log(message) {
+        const newLogEntry = document.createElement("p");
+        newLogEntry.textContent = message;
+        gameLog.appendChild(newLogEntry);
+        gameLog.scrollTop = gameLog.scrollHeight;
+      }
+
+      // Function to update inventory display
+      function updateInventory() {
+        inventory.innerHTML = "";
+        Object.entries(inventoryItems).forEach(([item, quantity], index) => {
+          const itemElement = document.createElement("div");
+          itemElement.classList.add("inventory-item");
+          itemElement.textContent = `${index + 1}. ${item} x${quantity}`;
+          inventory.appendChild(itemElement);
+        });
+      }
+
+      // Function to update coins display
+      function updateCoins() {
+        coinCount.textContent = coins;
+      }
+
+      // Function to update health display
+      function updateHealth() {
+        healthCount.textContent = health;
+      }
+
+      // Function to explore and find items
+      function explore() {
+        const randomItem = items[Math.floor(Math.random() * items.length)];
+        log(`You found a ${randomItem}!`);
+        if (inventoryItems[randomItem]) {
+          inventoryItems[randomItem]++;
+        } else {
+          inventoryItems[randomItem] = 1;
+        }
+        updateInventory();
+
+        if (Math.random() < 0.3) {
+          battle();
+        }
+      }
+
+      // Function to start passive exploration
+      function startExploring() {
+        if (!explorationInterval) {
+          explorationInterval = setInterval(explore, 3000);
+          log(
+            "Passive exploration started. You will find items every 3 seconds."
+          );
+        } else {
+          log("You are already exploring.");
+        }
+      }
+
+      // Function to stop passive exploration
+      function stopExploring() {
+        if (explorationInterval) {
+          clearInterval(explorationInterval);
+          explorationInterval = null;
+          log("Exploration stopped.");
+        } else {
+          log("You are not currently exploring.");
+        }
+      }
+
+      // Function to handle battle mechanics
+      function battle() {
+        const enemy = enemies[Math.floor(Math.random() * enemies.length)];
+        const damage = Math.floor(Math.random() * 20) + 10;
+        health -= damage;
+        log(`A wild ${enemy} appears! You take ${damage} damage.`);
+        updateHealth();
+
+        if (health <= 0) {
+          log("You have died. Game over.");
+          stopExploring();
+        } else {
+          log(`You survived the attack! Health: ${health}`);
+        }
+      }
+
+      // Function to handle buying items
+      function buy() {
+        const item = prompt("Enter the item name to buy:");
+        if (itemValues[item] && coins >= itemValues[item]) {
+          coins -= itemValues[item];
+          inventoryItems[item] = (inventoryItems[item] || 0) + 1;
+          log(`You bought a ${item}.`);
+        } else {
+          log("You don't have enough coins or the item doesn't exist.");
+        }
+        updateCoins();
+        updateInventory();
+      }
+
+      // Function to handle selling items
+      function sell(itemNumber) {
+        const item = Object.keys(inventoryItems)[itemNumber - 1];
+        if (item && inventoryItems[item] > 0) {
+          inventoryItems[item]--;
+          coins += itemValues[item] || 10;
+          log(
+            `You sold a ${item}. You earned ${itemValues[item] || 10} coins.`
+          );
+          if (inventoryItems[item] === 0) delete inventoryItems[item];
+        } else {
+          log("Invalid item number or no such item in inventory.");
+        }
+        updateCoins();
+        updateInventory();
+      }
+
+      // Function to process commands entered by the player
+      function processCommand() {
+        const command = commandInput.value.toLowerCase().split(" ");
+        if (commands.explore.includes(command[0])) {
+          explore();
+        } else if (commands.inventory.includes(command[0])) {
+          updateInventory();
+        } else if (commands.help.includes(command[0])) {
+          log(
+            "Available commands: explore, inventory, help, sell [item number], buy [item name], battle, startExploring, stopExploring"
+          );
+        } else if (commands.sell.includes(command[0]) && command[1]) {
+          sell(Number(command[1]));
+        } else if (commands.startExploring.includes(command[0])) {
+          startExploring();
+        } else if (commands.stopExploring.includes(command[0])) {
+          stopExploring();
+        } else {
+          log("Unknown command. Type 'help' for a list of commands.");
+        }
+        commandInput.value = "";
+      }
+
+      // Execute command when "Enter" is pressed
+      commandInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          processCommand();
+        }
+      });
+
+      log(
+        'You find yourself in a desolate wasteland. Your mission: survive. Scavenge for items to stay alive. Type "h" or "help" for a list of commands.'
+      );
+    </script>
+  </body>
+</html>
